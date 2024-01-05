@@ -3,7 +3,7 @@
 ## Data Sampling
 Traning and test (validation) set from [yfinance](https://pypi.org/project/yfinance/), a commonly-use Python library (2022-23 hourly data throughout)
 
-_Only the hourly within 730 days can be downloaded at no cost and I fetched the data at 2023 year end. More granular historical hourly data is a paid resource._
+_Only the hourly data within 730 days can be downloaded from `yfinance` at no cost and I fetched the data at 2023 year end. More granular historical hourly data is a paid resource elsewhere._
 
 ## Parameters (# of epochs, hidden layers, neurons, and the learning rate of Adam optimizers)
 Brute force training the given data (2/3 as training and the rest as test), pick the set of parameters that maximizes the Sharpe ratio of the portfolio performance in the test set period after excluding outliers.
