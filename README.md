@@ -1,7 +1,7 @@
 # Long Short Trading Strategy on US ETFs QQQ & IWM
 
 ## Data Sampling
-Traning and test (validation) set from ![yfinance](https://pypi.org/project/yfinance/), a commonly-use Python library (2022-23 hourly data throughout)
+Traning and test (validation) set from [yfinance](https://pypi.org/project/yfinance/), a commonly-use Python library (2022-23 hourly data throughout)
 
 _Only the hourly within 730 days can be downloaded at no cost and I fetched the data at 2023 year end. More granular historical hourly data is a paid resource._
 
@@ -29,7 +29,7 @@ Based on the prediction on test set, select 20<sup>th</sup> and 80<sup>th</sup> 
 3. Else, long the base portfolio.
 
 ## Trading API
-![IBKR Trader workstation (TWS)](https://www.interactivebrokers.com/en/trading/tws.php) API with ![ib_insync](https://pypi.org/project/ib-insync/) API wrapper. The connection is established via active TWS login session hence no explict token is needed.
+[IBKR Trader workstation (TWS)](https://www.interactivebrokers.com/en/trading/tws.php) API with [ib_insync](https://pypi.org/project/ib-insync/) API wrapper. The connection is established via active TWS login session hence no explict token is needed.
 
 ## Streamed Market Data
 #### US Equities and ETFs
