@@ -20,7 +20,7 @@ Base portfolio: 130% of IWM & -30% of QQQ (opposite position of IWM)
 Long or short position is based on the base portfolio. E.g. if the decision is to go long position in the base portfolio, we take 130% long position in IWM and short 30% of QQQ in terms of the net worth.
 
 ## Model prediction output & loss function
-The model predicts a binary outcome: if the portfolio will rise in the next hour or not. The output is therefore a probablity of direction.
+The model predicts a binary outcome: if the portfolio will rise in the next hour or not. The output is therefore a probablity of appreciation in the next hour.
 
 ## Decision making on LONG or SHORT
 Based on the prediction on test set, select 20<sup>th</sup> and 80<sup>th</sup> percentile of the prediciton results on the test set as the lower and upper decision boundaries. Usually, and as I expect, the prediction probablity distribution will center at around 0.5.
