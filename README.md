@@ -15,12 +15,16 @@ Brute force training the given data (2/3 as training and the rest as test), pick
 - Loss function: Binary Cross Entropy
 - Optimizer: Adam (Adaptive Moment Estimation)
 
+## Indicators as features 
+(to do)
+
 ## Portfolio
 Base portfolio: 130% of IWM & -30% of QQQ (opposite position of IWM)
+
 Long or short position is based on the base portfolio. E.g. if the decision is to go long position in the base portfolio, we take 130% long position in IWM and short 30% of QQQ in terms of the net worth.
 
 ## Model prediction output & loss function
-The model predicts a binary outcome: if the portfolio will rise in the next hour or not. The output is therefore a probablity of appreciation in the next hour.
+The model predicts a binary outcome: if the portfolio will rise in the next hour or not. The output is therefore a probablity of portfolio appreciation in the next hour.
 
 ## Decision making on LONG or SHORT
 Based on the prediction on test set, select 20<sup>th</sup> and 80<sup>th</sup> percentile of the prediciton results on the test set as the lower and upper decision boundaries. Usually, and as I expect, the prediction probablity distribution will center at around 0.5.
@@ -29,7 +33,31 @@ Based on the prediction on test set, select 20<sup>th</sup> and 80<sup>th</sup> 
 3. Else, long the base portfolio.
 
 ## Trading API
-[IBKR Trader workstation (TWS)](https://www.interactivebrokers.com/en/trading/tws.php) API with [ib_insync](https://pypi.org/project/ib-insync/) API wrapper. The connection is established via active TWS login session hence no explict token is needed.
+[IBKR Trader workstation (TWS)](https://www.interactivebrokers.com/en/trading/tws.php) API with [ib_insync](https://pypi.org/project/ib-insync/) API wrapper.
+
+The connection is established via active TWS login session hence no explict token is needed.
 
 ## Streamed Market Data
 #### US Equities and ETFs
+#### Forex
+
+## Implementation & Execution
+Run the `implementation_tool.py` as a script. (Make sure the TWS is logged in.)
+
+## Trade reports (Some SWE stuff)
+Broadcast a simple summary of the trades to an **LINE channel (official account)**
+
+Broadcast info: TBD
+
+Making Line Messaging API call: to do
+
+## Existing problems
+TBD
+
+## To do list
+- Existing problems
+- Some error handling
+- Making the code OO to handle global variables (by making them instant variables, optional)
+- Broadcasting summary
+- Line API connection and callback code (a separate file that wouldn't be pushed to github)
+- Line messages formatting (optional)
