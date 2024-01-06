@@ -44,6 +44,8 @@ The connection is established via active TWS login session hence no explict toke
 ## Implementation & Execution
 Run the `implementation_tool.py` as a script. (Make sure the TWS is logged in.)
 
+All orders placed are market orders.
+
 ## Trade reports (Some SWE stuff)
 Broadcast a simple summary of the trades to an **LINE channel (official account)**
 
