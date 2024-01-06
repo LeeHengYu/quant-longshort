@@ -1,7 +1,7 @@
 # Long Short Trading Strategy on US ETFs QQQ & IWM
 
 ## Data Sampling
-Traning and test (validation) set from [yfinance](https://pypi.org/project/yfinance/), a commonly-use Python library (2022-23 hourly data throughout)
+Traning and test (validation) set from [yfinance](https://pypi.org/project/yfinance/), a commonly-used Python library (2022-23 hourly data throughout)
 
 _Only the hourly data within 730 days can be downloaded from `yfinance` at no cost and I fetched the data at 2023 year end. More granular historical hourly data is a paid resource elsewhere._
 
@@ -14,9 +14,12 @@ Brute force training the given data (2/3 as training and the rest as test), pick
 - L1 regularization (λ = 0.0005)
 - Loss function: Binary Cross Entropy
 - Optimizer: Adam (Adaptive Moment Estimation)
+- Class weight adjustment: tell the model to pay more attention (heavier weight) on the relativity few cases that are available. Usually this technique is used on imbalanced data, as suggested in the [official Tensorflow tutorials](https://www.tensorflow.org/tutorials/structured_data/imbalanced_data#class_weights).
 
 ## Indicators as features 
-(to do)
+SMA(50) - SMA(150), EMA, Boillinger bands, RSI of 5/10 days, MACD, KD lines, stochastic oscillator, parabolic SAR, Aroon Indicator.
+
+_I tried to include 30+ features and fit a model on them. Now I am still learning how to improve the models by adjusting some params or removing some features._
 
 ## Portfolio
 Base portfolio: 130% of IWM & -30% of QQQ (opposite position of IWM)
@@ -39,7 +42,9 @@ The connection is established via active TWS login session hence no explict toke
 
 ## Streamed Market Data
 #### US Equities and ETFs
+Subscription required and only available in live trading accounts (non-paper). Paper accounts can only request 15m-delayed data and is not streamed (therefore not automated unless we fetch the live data somewhere else, e.g. `yfinance`).
 #### Forex
+Complete live and streaming enabled without any subscription, even in paper account.
 
 ## Implementation & Execution
 Run the `implementation_tool.py` as a script. (Make sure the TWS is logged in.)
@@ -47,19 +52,23 @@ Run the `implementation_tool.py` as a script. (Make sure the TWS is logged in.)
 All orders placed are market orders.
 
 ## Trade reports (Some SWE stuff)
-[Broadcast](https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message) a simple summary of the trades to an **LINE channel (official account)**
+[Broadcast](https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message) a simple summary of the trades to an **LINE channel (official account)** after each trading day.
 
 Broadcast info: TBD
 
 Making Line Messaging API call: to do
 
 ## Existing problems
-TBD
+1. Disparity in the timestamp of hourly data between `yfinance` and `ib_insync`. From `yfinance`, the quotes are snapshot at 9:30, 10:30, ..., 15:30 EST, whereas the data from IB API is at `k` o'clock sharp. Any underlying distribution in the time series should be the same despite this fact.
+2. Non-live streaming data in paper account.
+3. Fixed weights on QQQ/IWM so the strategy is kinda rigid.
+4. The market orders in paper trading usually take up to a few minutes to be filled (don't know why). Making tracking the portfolio net worth harder. 
 
 ## To do list
 - Existing problems
 - Some error handling
+- Helper functions generalized to FOREX cfd. _(For forex cfd trades, need to create two separate contracts: cash trading pairs for data, cfd for orders)_
 - Making the code OO to handle global variables (by making them instance variables, optional)
 - Broadcasting summary
 - Line API connection and callback code (a separate file that wouldn't be pushed to github)
-- Line messages formatting. See [Flex messages](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more. (optional)
+- Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more. (optional)
