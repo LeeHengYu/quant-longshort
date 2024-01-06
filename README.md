@@ -71,3 +71,9 @@ Making Line Messaging API call: to do
 - Broadcasting summary
 - Line API connection and callback code (a separate file that wouldn't be pushed to github)
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more. (optional)
+
+
+### Credits
+Partial codes are modified from the resources of a Udemy course.
+
+https://www.udemy.com/course/algorithmic-trading-with-python-and-machine-learning/
