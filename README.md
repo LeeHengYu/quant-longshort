@@ -47,7 +47,7 @@ Run the `implementation_tool.py` as a script. (Make sure the TWS is logged in.)
 All orders placed are market orders.
 
 ## Trade reports (Some SWE stuff)
-Broadcast a simple summary of the trades to an **LINE channel (official account)**
+[Broadcast](https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message) a simple summary of the trades to an **LINE channel (official account)**
 
 Broadcast info: TBD
 
@@ -62,4 +62,4 @@ TBD
 - Making the code OO to handle global variables (by making them instance variables, optional)
 - Broadcasting summary
 - Line API connection and callback code (a separate file that wouldn't be pushed to github)
-- Line messages formatting (optional)
+- Line messages formatting. See [Flex messages](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more. (optional)
