@@ -65,7 +65,6 @@ Making Line Messaging API call: to do
 4. The market orders in paper trading usually take up to a few minutes to be filled even for QQQ such a highly liquid security (don't know why). Making tracking the portfolio net worth harder. 
 
 ## To do list
-- Existing problems
 - Some error handling
 - Helper functions generalized to FOREX cfd. _(For forex cfd trades, need to create two separate contracts: cash trading pairs for data, cfd for orders)_
 - Making the code OO to handle global variables (by making them instance variables, optional)
