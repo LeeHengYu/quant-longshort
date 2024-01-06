@@ -59,7 +59,7 @@ TBD
 ## To do list
 - Existing problems
 - Some error handling
-- Making the code OO to handle global variables (by making them instant variables, optional)
+- Making the code OO to handle global variables (by making them instance variables, optional)
 - Broadcasting summary
 - Line API connection and callback code (a separate file that wouldn't be pushed to github)
 - Line messages formatting (optional)
