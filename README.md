@@ -65,8 +65,8 @@ Making Line Messaging API call: to do
 4. The market orders in paper trading usually take up to a few minutes to be filled even for QQQ such a highly liquid security (don't know why). Making tracking the portfolio net worth harder. 
 
 ## To do list
-**- Broadcasting summary (need to be able to output a trade report for Line message rendering. The line message is wrapped in JSON format.)**
-**- Line API connection and callback code (a separate file that wouldn't be pushed to github)**
+- Broadcasting summary (need to be able to output a trade report for Line message rendering. The line message is wrapped in JSON format.)
+- Line API connection and callback code (a separate file that wouldn't be pushed to github)
 - Some error handling (suggested)
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more. (optional)
 - Train a new model on "USDJPY" & "EURUSD" (replicate what's happening in QQQ/IWM context but there is no background reason.) (optional)
