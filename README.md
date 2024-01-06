@@ -5,7 +5,7 @@ Traning and test (validation) set from [yfinance](https://pypi.org/project/yfina
 
 _Only the hourly data within 730 days can be downloaded from `yfinance` at no cost and I fetched the data at 2023 year end. More granular historical hourly data is a paid resource elsewhere._
 
-## Parameters (# of epochs, hidden layers, neurons, and the learning rate of Adam optimizers)
+## Parameters (# of epochs, hidden layers, neurons, the learning rate of Adam optimizers)
 Brute force training the given data (2/3 as training and the rest as test), pick the set of parameters that maximizes the Sharpe ratio of the portfolio performance in the test set period after excluding outliers.
 > Result: QQQ_weight = -0.3, IWM_weight = 1.3, hidden_layers = 4, neurons = 60, Adam_learning_rate = 0.3
 
