@@ -62,7 +62,7 @@ Making Line Messaging API call: to do
 1. The timestamps of hourly data differ between `yfinance` and `ib_insync`. From `yfinance`, the quotes are snapshot at 9:30, 10:30, ..., 15:30 EST, whereas the data from IB API is at `k` o'clock sharp. Any underlying distribution in the time series should be the same despite this fact.
 2. Non-live streaming data in paper account.
 3. Fixed weights on QQQ/IWM so the strategy is kinda rigid.
-4. The market orders in paper trading usually take up to a few minutes to be filled (don't know why). Making tracking the portfolio net worth harder. 
+4. The market orders in paper trading usually take up to a few minutes to be filled even for QQQ such a highly liquid security (don't know why). Making tracking the portfolio net worth harder. 
 
 ## To do list
 - Existing problems
