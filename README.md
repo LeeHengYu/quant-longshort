@@ -1,6 +1,6 @@
 # Long Short Trading Strategy on US ETFs QQQ & IWM
 
-## Background (Some qualitative reasons)
+## Background (Some macroeconomics)
 Near the end of 2023, after the FED raised their expected rate cuts in the coming years, mid/small caps outperformed the big cap companies as many believe lower interest rates tend to benefit small companies more. In 23Q4, $IWM outperformed $QQQ. It then made me wonder if a long short portfolio works well in the recent years relative to only $QQQ or $IWM, and if this long-short portfolio outperforms the individual ETF.
 
 ## Data Sampling
