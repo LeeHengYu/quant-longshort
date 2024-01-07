@@ -54,7 +54,7 @@ Run the `implementation_tool.py` as a script. (Make sure the TWS is logged in.)
 
 All orders placed are market orders.
 
-## Trade reports (Some SWE stuff)
+## Trade reports _(Some SWE stuff)_
 [Broadcast](https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message) a simple summary of the trades to an **LINE channel (official account)** after each trading day.
 
 Broadcast info: All filled trades in the day and total P/L.
@@ -73,6 +73,7 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 - Train a new model on "USDJPY" & "EURUSD" (replicate what's happening in QQQ/IWM context but there is no background reason.) (optional)
 - Helper functions generalized to FOREX cfd. _(For forex cfd trades, need to create two separate contracts: cash trading pairs for data, cfd for orders)_ (optional)
 - Making the code OO to handle global variables (by making them instance variables, optional)
+- SWE part: handle query from users
 
 ### Credits
 Partial codes are modified from the resources of a Udemy course.
