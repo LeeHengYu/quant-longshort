@@ -57,9 +57,8 @@ All orders placed are market orders.
 ## Trade reports (Some SWE stuff)
 [Broadcast](https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message) a simple summary of the trades to an **LINE channel (official account)** after each trading day.
 
-Broadcast info: TBD
-
-Making Line Messaging API call: Called at the end of trading sessions, abstraction done.
+Broadcast info: All filled trades in the day and total P/L.
+Making Line Messaging API call: Called at the end of trading sessions, abstraction completed.
 
 ## Existing problems
 1. The timestamps of hourly data differ between `yfinance` and `ib_insync`. From `yfinance`, the quotes are snapshot at 9:30, 10:30, ..., 15:30 EST, whereas the data from IB API is at `k` o'clock sharp. Any underlying distribution in the time series should be the same despite this fact.
@@ -68,7 +67,6 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 4. The market orders in paper trading usually take up to a few minutes to be filled even for QQQ such a highly liquid security (don't know why). Making tracking the portfolio net worth harder. 
 
 ## To do list
-- Broadcasting summary formatting `pandas.DataFrame.to_json(orient = "index")`
 - Some error handling (suggested)
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more.
 - Train a new model on "USDJPY" & "EURUSD" (replicate what's happening in QQQ/IWM context but there is no background reason.) (optional)
