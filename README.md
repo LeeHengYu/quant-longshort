@@ -59,7 +59,7 @@ All orders placed are market orders.
 
 Broadcast info: TBD
 
-Making Line Messaging API call: to do
+Making Line Messaging API call: Called at the end of trading sessions, abstraction done.
 
 ## Existing problems
 1. The timestamps of hourly data differ between `yfinance` and `ib_insync`. From `yfinance`, the quotes are snapshot at 9:30, 10:30, ..., 15:30 EST, whereas the data from IB API is at `k` o'clock sharp. Any underlying distribution in the time series should be the same despite this fact.
