@@ -58,6 +58,7 @@ All orders placed are market orders.
 [Broadcast](https://developers.line.biz/en/reference/messaging-api/#send-broadcast-message) a simple summary of the trades to an **LINE channel (official account)** after each trading day.
 
 Broadcast info: All filled trades in the day and total P/L.
+
 Making Line Messaging API call: Called at the end of trading sessions, abstraction completed.
 
 ## Existing problems
