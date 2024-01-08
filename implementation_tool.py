@@ -1,8 +1,10 @@
-import numpy as np
-import pandas as pd
 from math import floor
 
+import numpy as np
+import pandas as pd
+
 from line_message import LINEMessageCall
+from df_formatter import add_features, extract_features
 
 pd.set_option('mode.chained_assignment', None)
 # surpress chain assignment warning (already used loc but still not working)
@@ -22,7 +24,7 @@ ib.connect()
 wQQQ = -0.3
 wIWM = 1 - wQQQ
 start_time = dt.time(14,27,0) # 3 mins before regular trading hours
-end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 3, seconds = -dt.datetime.utcnow().second)).time()
+end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 1, seconds = -dt.datetime.utcnow().second)).time()
 cash = 10000
 
 cfd1 = cfd2 = None
@@ -47,7 +49,7 @@ def initialize_stream():
     qqq_bars = ib.reqHistoricalData(
         qqq,
         endDateTime='',
-        durationStr='12 H',
+        durationStr='1 D',
         barSizeSetting='1 min',
         whatToShow='MIDPOINT',
         useRTH=True,
@@ -56,7 +58,7 @@ def initialize_stream():
     iwm_bars = ib.reqHistoricalData(
         iwm,
         endDateTime='',
-        durationStr='12 H',
+        durationStr='1 D',
         barSizeSetting='1 min',
         whatToShow='MIDPOINT',
         useRTH=True,
@@ -66,9 +68,8 @@ def initialize_stream():
     iwm_bars.updateEvent += onIWMBarUpdate
 
 def start_session():
-    global last_update, session_start
-    last_update = dt.datetime.utcnow()
-    session_start = pd.to_datetime(last_update).tz_localize("utc")
+    global session_start
+    session_start = pd.to_datetime(dt.datetime.utcnow()).tz_localize("utc")
 
     get_contracts(dev_mode=True)
     initialize_stream()
@@ -87,29 +88,31 @@ def compile_initial_data():
     iwm_data = prepare_data(iwm_bars)
     all_data = pd.concat([qqq_data, iwm_data], axis = 1).dropna()
     latest_price = { b.contract.localSymbol.replace('.', ''): b[-1].close for b in [qqq_bars, iwm_bars] }
-    os.system('clear') # 'cls' on WindowsOS
-    # print(latest_price)
-    print(all_data)
+    os.system('clear')
+    print(all_data.iloc[-10:])
     
 def stop_session(startTime_enabled = True, endTime_enabled = True):
     print("Into the while loop!")
     while True:
+        ib.sleep(5)
         if startTime_enabled and dt.datetime.utcnow().time() < start_time:
             print("Before trading hours, the session automatically stops.")
             break
         if endTime_enabled and dt.datetime.utcnow().time() >= end_time:
             execute_trade(-1, target_pos=0)
-            ib.sleep(7)
+            ib.sleep(7) # wait for the market order to fill
             try:
                 report = trade_reporting()
-                PnL = report.cumPNL[-1]
             except:
-                report = PnL = None
+                report = None
                 
-            if report is not None and PnL:
+            if report is not None:
                 print("Data is valid for API call")
-                LINEMessageCall("Trading Summary", report.to_string(), "Realized P/L", PnL)  
-                ib.sleep(8)
+                report.round(2)
+                LINEMessageCall("Trading Summary", report.to_string())
+                ib.sleep(5)
+            else:
+                print("No trades data")
             print("End session as planned")
             break
     ib.cancelHistoricalData(qqq_bars)
@@ -126,43 +129,6 @@ def prepare_data(bars): # input: BarDataList
     df.columns = [ticker + '_' + att for att in attributes]
     return df
 
-def add_features(df, ticker_list):
-    for ticker in ticker_list:
-        df[f"{ticker}_return"] = np.log(df[f"{ticker}_Close"].div(df[f"{ticker}_Close"].shift(1)))
-        df.fillna(0, inplace=True)
-        df[f"{ticker}_creturn"] = df[f"{ticker}_return"].cumsum().apply(np.exp)
-        
-    windows = [5, 10, 20, 50]
-    for ticker in ticker_list:
-        for window in windows:
-            df[f'{ticker}_EMA_{window}'] = ta.trend.EMAIndicator(df[f'{ticker}_Close'], window = 7*window).ema_indicator()
-    
-    windows = [3, 5, 10]
-    for ticker in ticker_list:
-        for window in windows:
-            bollinger_object = ta.volatility.BollingerBands(df[f'{ticker}_Close'], window = 7*window)
-            df[f'{ticker}_LBol_{window}'] = bollinger_object.bollinger_lband()
-            df[f'{ticker}_HBol_{window}'] = bollinger_object.bollinger_hband()
-    
-    for ticker in ticker_list:
-        df[f'{ticker}_RSI_5'] = ta.momentum.RSIIndicator(df[f'{ticker}_Close'], window = 5*7).rsi()
-        df[f'{ticker}_RSI_10'] = ta.momentum.RSIIndicator(df[f'{ticker}_Close'], window = 5*10).rsi()
-        
-        df[f'{ticker}_SMA_50_150'] = df[f'{ticker}_Close'].rolling(50).mean() - df[f'{ticker}_Close'].rolling(150).mean()
-        
-        df[f"{ticker}_MACD"] = ta.trend.MACD(df[f'{ticker}_Close'], window_fast=12*7, window_slow=24*7, window_sign=8*7).macd()
-        df[f'{ticker}_MACD_hist'] = ta.trend.MACD(df[f'{ticker}_Close'], window_fast=12*7, window_slow=26*7, window_sign=9*7).macd_diff()
-        
-        KD_object = ta.momentum.StochasticOscillator(df[f'{ticker}_High'], df[f'{ticker}_Low'], df[f'{ticker}_Close'], window = 14*7)
-        df[f'{ticker}_KD_K'] = KD_object.stoch()
-        df[f'{ticker}_KD_D'] = KD_object.stoch_signal()
-        
-        o = ta.trend.PSARIndicator(df[f'{ticker}_High'], df[f'{ticker}_Low'], df[f'{ticker}_Close'])
-        df[f'{ticker}_SAR'] = o.psar()
-        
-        df[f'{ticker}_AroonIndicator'] = ta.trend.AroonIndicator(df[f'{ticker}_High'], df[f'{ticker}_Low'], window = 50).aroon_indicator()
-        
-    return df
 
 def fit_model(layer = 4, neurons = 60, epochs = 50, wQQQ = - 0.3):
     """
@@ -202,16 +168,6 @@ def predict_last(df, mu, std):
     single_X = (single_X - mu) / std
     print(f'Last tick data: {single_X.index[0]}')
     return model.predict(single_X)[0][0]
-
-def extract_features(df, t1: str, t2: str):
-    # constant filtering
-    features = ['_AroonIndicator', '_EMA_10', '_EMA_20', '_EMA_5', '_EMA_50', '_HBol_10', '_HBol_3', '_HBol_5', '_KD_D', '_KD_K', '_LBol_10', '_LBol_3', '_LBol_5', '_MACD', '_MACD_hist', '_RSI_10', '_RSI_5', '_SAR', '_SMA_50_150']
-
-    cols = []
-    for f in features:
-        cols.append(t1 + f)
-        cols.append(t2 + f)
-    return df[cols]
     
 def process_new_bar():
     global all_data, cash
@@ -219,8 +175,7 @@ def process_new_bar():
         all_data = pd.concat([qqq_data, iwm_data], axis = 1)
         os.system('clear')
         print(all_data.iloc[-10:]) # print out the latest 10 ticks
-        
-        ticker_list = [ x.replace('.', '') for x in ticker_list ] # strip the '.'
+        ticker_list = [ con.localSymbol.replace('.', '') for con in [qqq, iwm] ] 
         all_data = extract_features(add_features(all_data, ticker_list), *ticker_list)
         # guess_prob = predict_last(all_data, mu ,std) # model only designed for QQQ/IWM strat for now
         # if low < guess_prob < high: # do nothing
@@ -240,18 +195,23 @@ def updateLatestPrice(bars):
 def onQQQBarUpdate(bars, hasNewBar):
     global qqq_data
     updateLatestPrice(bars)
-    print(bars)
+    # print(bars[-1])
+    if not hasNewBar:
+        return
     qqq_data = prepare_data(bars)
     this_ticker = bars.contract.localSymbol or bars.contract.symbol
-    # print(f"Received {this_ticker} data")
+    print(f"Received {this_ticker} data")
     process_new_bar()
 
 def onIWMBarUpdate(bars, hasNewBar): 
     global iwm_data
     updateLatestPrice(bars)
+    # print(bars[-1])
+    if not hasNewBar:
+        return
     iwm_data = prepare_data(bars)
     this_ticker = bars.contract.localSymbol
-    # print(f"Received {this_ticker} data")
+    print(f"Received {this_ticker} data")
     process_new_bar()
 
 def getPrice(ticker):
@@ -311,17 +271,16 @@ def execute_trade(cash, target_pos: float) -> None:
     return res
     
 def trade_reporting():
+    fills_contract_detail = util.df([fs.contract for fs in ib.fills()]).localSymbol
     fill_df = util.df([fs.execution for fs in ib.fills()])[["execId", "time", "side", "shares", "avgPrice"]].set_index("execId")
     profit_df = util.df([fs.commissionReport for fs in ib.fills()])[["execId", "realizedPNL"]].set_index("execId")
-    report = pd.concat([fill_df, profit_df], axis = 1).set_index("time").loc[session_start:].tz_convert("Asia/Taipei")
+    report = pd.concat([fill_df, profit_df], axis = 1).set_index("time")
+    report['symbol'] = fills_contract_detail.values
+    report = report.loc[session_start:].tz_convert("Asia/Singapore")
     report.index = report.index.strftime('%H:%M')
-    # report = report.groupby(["time", "side"]).agg({"shares":"sum", "avgPrice":"mean", "realizedPNL":"sum"}).reset_index().set_index("time")
-    report["cumPNL"] = report.realizedPNL.cumsum()
-    if report.empty():
-        return    
+    report = report.round(2)
     os.system('clear')
     print(report)
-    print(f'Realized P&L of the session: {report.cumPNL[-1]}\n')
     return report
 
 if __name__ == '__main__':
