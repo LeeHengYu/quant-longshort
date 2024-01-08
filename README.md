@@ -71,7 +71,6 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 - Some error handling (suggested)
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more.
 - Train a new model on "USDJPY" & "EURUSD" (replicate what's happening in QQQ/IWM context but there is no background reason.) (optional)
-- Helper functions generalized to FOREX cfd. _(For forex cfd trades, need to create two separate contracts: cash trading pairs for data, cfd for orders)_ (optional)
 - SWE part: handle query from users (deploy cloud db and functions hanlding webhook)
 
 ### Credits
