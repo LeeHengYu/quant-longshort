@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+from math import floor
+
+from line_message import LINEMessageCall
 
 pd.set_option('mode.chained_assignment', None)
 # surpress chain assignment warning (already used loc but still not working)
@@ -19,21 +22,32 @@ ib.connect()
 wQQQ = -0.3
 wIWM = 1 - wQQQ
 start_time = dt.time(14,27,0) # 3 mins before regular trading hours
-end_time = dt.time(20,30,0)
+end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 3, seconds = -dt.datetime.utcnow().second)).time()
 cash = 10000
 
-# qqq = Stock('QQQ', 'SMART', 'USD') # Actual implementation
-# iwm = Stock('IWM', 'SMART', 'USD') # Actual implementation
-qqq = Forex('USDJPY') # For testing
-iwm = Forex('EURUSD') # For testing
-ib.qualifyContracts(qqq, iwm)
+cfd1 = cfd2 = None
+
+def get_contracts(dev_mode = False):
+    global cfd1, cfd2, qqq, iwm
+    if not dev_mode:
+        qqq = Stock('QQQ', 'SMART', 'USD') # Actual implementation
+        iwm = Stock('IWM', 'SMART', 'USD') # Actual implementation
+    else:
+        qqq = Forex('USDJPY') # For testing
+        iwm = Forex('EURUSD') # For testing
+        cfd1 = CFD('USD', currency='JPY')
+        cfd2 = CFD('EUR', currency='USD')
+    ib.qualifyContracts(qqq, iwm)
+    if dev_mode:
+        ib.qualifyContracts(cfd1, cfd2)
+    
 
 def initialize_stream():
     global qqq_bars, iwm_bars
     qqq_bars = ib.reqHistoricalData(
         qqq,
         endDateTime='',
-        durationStr='1 D',
+        durationStr='12 H',
         barSizeSetting='1 min',
         whatToShow='MIDPOINT',
         useRTH=True,
@@ -42,7 +56,7 @@ def initialize_stream():
     iwm_bars = ib.reqHistoricalData(
         iwm,
         endDateTime='',
-        durationStr='1 D',
+        durationStr='12 H',
         barSizeSetting='1 min',
         whatToShow='MIDPOINT',
         useRTH=True,
@@ -56,19 +70,25 @@ def start_session():
     last_update = dt.datetime.utcnow()
     session_start = pd.to_datetime(last_update).tz_localize("utc")
 
+    get_contracts(dev_mode=True)
     initialize_stream()
     print("Establish Stream")
     compile_initial_data()
     print("Data complied!")
-    stop_session()
+    stop_session(False, True)
     
 def compile_initial_data():
     global qqq_data, iwm_data, all_data, latest_price
+    try:
+        ticker_list = [qqq.localSymbol.replace('.', ''), iwm.localSymbol.replace('.', '')] # For forex
+    except:
+        ticker_list = [qqq.symbol, iwm.symbol] # For stocks
     qqq_data = prepare_data(qqq_bars)
     iwm_data = prepare_data(iwm_bars)
     all_data = pd.concat([qqq_data, iwm_data], axis = 1).dropna()
     latest_price = { b.contract.localSymbol.replace('.', ''): b[-1].close for b in [qqq_bars, iwm_bars] }
     os.system('clear') # 'cls' on WindowsOS
+    # print(latest_price)
     print(all_data)
     
 def stop_session(startTime_enabled = True, endTime_enabled = True):
@@ -78,28 +98,35 @@ def stop_session(startTime_enabled = True, endTime_enabled = True):
             print("Before trading hours, the session automatically stops.")
             break
         if endTime_enabled and dt.datetime.utcnow().time() >= end_time:
+            execute_trade(-1, target_pos=0)
+            ib.sleep(7)
             try:
-                report, PnL = trade_reporting()
+                report = trade_reporting()
+                PnL = report.cumPNL[-1]
             except:
                 report = PnL = None
-            if report and PnL:
+                
+            if report is not None and PnL:
                 print("Data is valid for API call")
-                # LINE messaging API function call (callback import from another module)
+                LINEMessageCall("Trading Summary", report.to_string(), "Realized P/L", PnL)  
+                ib.sleep(8)
             print("End session as planned")
             break
-        ib.sleep(10)
     ib.cancelHistoricalData(qqq_bars)
     ib.cancelHistoricalData(iwm_bars)
     ib.disconnect()
 
 def prepare_data(bars): # input: BarDataList
-    df = pd.DataFrame(bars).set_index('date').tz_convert('US/Eastern').iloc[:-1, 1:4]
-    ticker = bars.contract.symbol
+    df = pd.DataFrame(bars).set_index('date').tz_convert('Asia/Taipei').iloc[:-1, 1:4]
+    try:
+        ticker = bars.contract.localSymbol.replace('.', '')
+    except:
+        ticker = bars.contract.symbol.replace('.', '')
     attributes = ['High', 'Low', 'Close']
     df.columns = [ticker + '_' + att for att in attributes]
     return df
 
-def add_features(df, ticker_list = ['QQQ', 'IWM']):
+def add_features(df, ticker_list):
     for ticker in ticker_list:
         df[f"{ticker}_return"] = np.log(df[f"{ticker}_Close"].div(df[f"{ticker}_Close"].shift(1)))
         df.fillna(0, inplace=True)
@@ -187,23 +214,24 @@ def extract_features(df, t1: str, t2: str):
     return df[cols]
     
 def process_new_bar():
-    global all_data
-    # last_update = dt.datetime.utcnow()
-    # print(last_update)
+    global all_data, cash
     if qqq_data.index[-1] == iwm_data.index[-1] and qqq_data.index[-1] > all_data.index[-1]:
         all_data = pd.concat([qqq_data, iwm_data], axis = 1)
         os.system('clear')
         print(all_data.iloc[-10:]) # print out the latest 10 ticks
-        extract_features(add_features(all_data, [qqq_bars.symbol, iwm_bars.symbol]), qqq_bars.symbol, iwm_bars.symbol)
-        guess_prob = predict_last(all_data, mu ,std) # model only designed for QQQ/IWM strat for now
-        if low < guess_prob < high: # do nothing
-            return
-        elif guess_prob <= low:
-            target = -1
-        else:
-            target = 1
+        
+        ticker_list = [ x.replace('.', '') for x in ticker_list ] # strip the '.'
+        all_data = extract_features(add_features(all_data, ticker_list), *ticker_list)
+        # guess_prob = predict_last(all_data, mu ,std) # model only designed for QQQ/IWM strat for now
+        # if low < guess_prob < high: # do nothing
+            # return
+        # elif guess_prob <= low:
+            # target = -1
+        # else:
+            # target = 1
+        target = 1
         print(f'New target position = {target}')
-        execute_trade(target)
+        cash = execute_trade(cash, target)
              
 def updateLatestPrice(bars):
     temp = bars.contract.localSymbol.replace('.', '')
@@ -211,28 +239,27 @@ def updateLatestPrice(bars):
 
 def onQQQBarUpdate(bars, hasNewBar):
     global qqq_data
-    if qqq_data.index[-1] >= bars[-1].date:
-        return
     updateLatestPrice(bars)
+    print(bars)
     qqq_data = prepare_data(bars)
-    print("Received QQQ data")
+    this_ticker = bars.contract.localSymbol or bars.contract.symbol
+    # print(f"Received {this_ticker} data")
     process_new_bar()
 
 def onIWMBarUpdate(bars, hasNewBar): 
     global iwm_data
     updateLatestPrice(bars)
-    if iwm_data.index[-1] >= bars[-1].date:
-        return
     iwm_data = prepare_data(bars)
-    print("Received IWM data")
+    this_ticker = bars.contract.localSymbol
+    # print(f"Received {this_ticker} data")
     process_new_bar()
 
 def getPrice(ticker):
     if ticker in latest_price:
         return latest_price[ticker]
-    return -1
+    raise KeyError("Ticker does not exist.")
 
-def send_order(units, contract):
+def send_order(units, contract, fractionEnabled = False):
     if units > 0:
         side = 'BUY'
     elif units < 0:
@@ -240,50 +267,67 @@ def send_order(units, contract):
     else: # no trades
         return
     
-    order = MarketOrder(side, abs(units))
+    units = abs(units)
+    if not fractionEnabled:
+        units = floor(units)
+        
+    order = MarketOrder(side, units)
     ib.placeOrder(contract, order)
 
-def execute_trade(target_pos: float) -> None:
+def execute_trade(cash, target_pos: float) -> None:
     original_cash = cash
     try:
-        current_IWM_pos = [pos.position for pos in ib.positions() if pos.contract.conId == iwm.conId][0]
+        tickers = [con.localSymbol.replace('.', '') for con in [qqq, iwm]]
     except:
-        current_IWM_pos = 0
+        tickers = [con.symbol.replace('.', '') for con in [qqq, iwm]]
+    
     try:
         current_QQQ_pos = [pos.position for pos in ib.positions() if pos.contract.conId == qqq.conId][0]
     except:
         current_QQQ_pos = 0
+    try:
+        current_IWM_pos = [pos.position for pos in ib.positions() if pos.contract.conId == iwm.conId][0]
+    except:
+        current_IWM_pos = 0
     
-    netWorth = all_data.QQQ_Close[-1] * current_QQQ_pos + all_data.IWM_Close[-1] * current_IWM_pos + original_cash
-        # calculate the latest net worth based on the latest tick price
+    # if USD___, position = USD FV, else convert to USD position
+    netWorth = (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * current_QQQ_pos + getPrice(tickers[1]) * current_IWM_pos + original_cash
+    # calculate the latest net worth based on the latest tick price
         
-    desired_QQQ_shares = netWorth * wQQQ / getPrice('QQQ') * target_pos
-    desired_IWM_shares = netWorth * wIWM / getPrice('IWM') * target_pos
+    desired_QQQ_shares = netWorth * wQQQ / (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * target_pos
+    desired_IWM_shares = netWorth * wIWM / getPrice(tickers[1]) * target_pos
     reqQQQTrades, reqIWMTrades = desired_QQQ_shares - current_QQQ_pos, desired_IWM_shares - current_IWM_pos
-    send_order(reqQQQTrades, qqq)
-    send_order(reqIWMTrades, iwm)
+    reqQQQTrades = 100000*target_pos
+    reqIWMTrades = -1000*target_pos
+    if cfd1 and cfd2: # dev mode
+        send_order(reqQQQTrades, cfd1)
+        send_order(reqIWMTrades, cfd2)
+    else:
+        send_order(reqQQQTrades, qqq)
+        send_order(reqIWMTrades, iwm)
     # rebalance every hour (lower volatility but more trans costs)
     # inaccurate calculation on balance as we're getting delayed prices on stocks (paper account)
-    cash = netWorth - reqQQQTrades * getPrice('QQQ') - reqIWMTrades * getPrice('IWM')
+    res = netWorth - reqQQQTrades * getPrice(qqq.localSymbol.replace('.', '')) - reqIWMTrades * getPrice(iwm.localSymbol.replace('.', ''))
+    return res
     
 def trade_reporting():
-    global report
-    
     fill_df = util.df([fs.execution for fs in ib.fills()])[["execId", "time", "side", "shares", "avgPrice"]].set_index("execId")
     profit_df = util.df([fs.commissionReport for fs in ib.fills()])[["execId", "realizedPNL"]].set_index("execId")
-    report = pd.concat([fill_df, profit_df], axis = 1).set_index("time").loc[session_start:]
+    report = pd.concat([fill_df, profit_df], axis = 1).set_index("time").loc[session_start:].tz_convert("Asia/Taipei")
+    report.index = report.index.strftime('%H:%M')
     # report = report.groupby(["time", "side"]).agg({"shares":"sum", "avgPrice":"mean", "realizedPNL":"sum"}).reset_index().set_index("time")
     report["cumPNL"] = report.realizedPNL.cumsum()
-        
+    if report.empty():
+        return    
     os.system('clear')
     print(report)
-    print(f'Realized P&L of the session: {report.cumPNL[-1]}')
-    return report, report.cumPNL[-1]
+    print(f'Realized P&L of the session: {report.cumPNL[-1]}\n')
+    return report
 
 if __name__ == '__main__':
-    featured = pd.read_csv("featured_data.csv", index_col="time", parse_dates=['time'])
-    cols = featured.iloc[:, 2:].columns
-    test_res, low, high, model, mu, std = fit_model()
+    # featured = pd.read_csv("featured_data.csv", index_col="time", parse_dates=['time'])
+    # cols = featured.iloc[:, 2:].columns
+    # test_res, low, high, model, mu, std = fit_model()
     # prepare necessary data
     
     start_session()
