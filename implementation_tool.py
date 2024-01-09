@@ -22,7 +22,7 @@ wQQQ = -0.3
 wIWM = 1 - wQQQ
 start_time = dt.time(14,27,0) # 3 mins before regular trading hours
 end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 10)).time()
-cash = 10000
+unit = 1000
 
 cfd1 = cfd2 = None
 
@@ -176,8 +176,8 @@ def process_new_bar():
         os.system('clear')
         print(all_data.iloc[-10:]) # print out the latest 10 ticks
         ticker_list = [ con.localSymbol.replace('.', '') for con in [qqq, iwm] ] 
-        all_data = extract_features(add_features(all_data, ticker_list), *ticker_list)
-        guess_prob = predict_last(all_data, mu ,std) # model only designed for QQQ/IWM strat for now
+        prediction_data = extract_features(add_features(all_data, ticker_list), *ticker_list)
+        guess_prob = predict_last(prediction_data, mu ,std) # model only designed for QQQ/IWM strat for now
         print(f"Guessing Probality: {guess_prob}")
         if low < guess_prob < high: # do nothing
             return
@@ -234,8 +234,7 @@ def send_order(units, contract, fractionEnabled = False):
     order = MarketOrder(side, units)
     ib.placeOrder(contract, order)
 
-def execute_trade(cash, target_pos: float) -> None:
-    original_cash = cash
+def execute_trade(target_pos: float):
     try:
         tickers = [con.localSymbol.replace('.', '') for con in [qqq, iwm]]
     except:
@@ -251,14 +250,12 @@ def execute_trade(cash, target_pos: float) -> None:
         current_IWM_pos = 0
     
     # if USD___, position = USD FV, else convert to USD position
-    netWorth = (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * current_QQQ_pos + getPrice(tickers[1]) * current_IWM_pos + original_cash
+    # netWorth = (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * current_QQQ_pos + getPrice(tickers[1]) * current_IWM_pos + original_cash
     # calculate the latest net worth based on the latest tick price
         
-    desired_QQQ_shares = netWorth * wQQQ / (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * target_pos
-    desired_IWM_shares = netWorth * wIWM / getPrice(tickers[1]) * target_pos
+    desired_QQQ_shares = unit * target_pos * 1.3 / 1.1
+    desired_IWM_shares = unit * target_pos * (-0.3)
     reqQQQTrades, reqIWMTrades = desired_QQQ_shares - current_QQQ_pos, desired_IWM_shares - current_IWM_pos
-    reqQQQTrades = 1000*target_pos # dev mode
-    reqIWMTrades = -1000*target_pos # dev mode
     if cfd1 and cfd2: # dev mode
         send_order(reqQQQTrades, cfd1)
         send_order(reqIWMTrades, cfd2)
@@ -267,8 +264,7 @@ def execute_trade(cash, target_pos: float) -> None:
         send_order(reqIWMTrades, iwm)
     # rebalance every hour (lower volatility but more trans costs)
     # inaccurate calculation on balance as we're getting delayed prices on stocks (paper account)
-    res = netWorth - reqQQQTrades * getPrice(qqq.localSymbol.replace('.', '')) - reqIWMTrades * getPrice(iwm.localSymbol.replace('.', ''))
-    return res
+    # res = netWorth - reqQQQTrades * getPrice(qqq.localSymbol.replace('.', '')) - reqIWMTrades * getPrice(iwm.localSymbol.replace('.', ''))
     
 def trade_reporting():
     fills_contract_detail = util.df([fs.contract for fs in ib.fills()]).localSymbol
