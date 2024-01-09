@@ -1,22 +1,19 @@
+import datetime as dt
+import os
 from math import floor
 
 import numpy as np
 import pandas as pd
-
-from line_message import LINEMessageCall
-from df_formatter import add_features, extract_features
-
-pd.set_option('mode.chained_assignment', None)
-# surpress chain assignment warning (already used loc but still not working)
-# suspect false positives (according to pandas official doc)
-
-import datetime as dt
-import os
-
-import ta
 from ib_insync import *
 
+from df_formatter import add_features, extract_features
 from DNNModel import *
+from line_message import LINEMessageCall
+
+pd.set_option('mode.chained_assignment', None)
+# pd.set_option('float_format', '{:.4f}'.format)
+# suppress chain assignment warning (already used loc but still not working)
+# suspect false positives (according to pandas official doc)
 
 ib = IB()
 ib.connect()
@@ -24,7 +21,7 @@ ib.connect()
 wQQQ = -0.3
 wIWM = 1 - wQQQ
 start_time = dt.time(14,27,0) # 3 mins before regular trading hours
-end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 1, seconds = -dt.datetime.utcnow().second)).time()
+end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 10)).time()
 cash = 10000
 
 cfd1 = cfd2 = None
@@ -49,8 +46,8 @@ def initialize_stream():
     qqq_bars = ib.reqHistoricalData(
         qqq,
         endDateTime='',
-        durationStr='1 D',
-        barSizeSetting='1 min',
+        durationStr='1 W',
+        barSizeSetting='3 mins',
         whatToShow='MIDPOINT',
         useRTH=True,
         formatDate=2,
@@ -58,8 +55,8 @@ def initialize_stream():
     iwm_bars = ib.reqHistoricalData(
         iwm,
         endDateTime='',
-        durationStr='1 D',
-        barSizeSetting='1 min',
+        durationStr='1 W',
+        barSizeSetting='3 mins',
         whatToShow='MIDPOINT',
         useRTH=True,
         formatDate=2,
@@ -79,7 +76,7 @@ def start_session():
     stop_session(False, True)
     
 def compile_initial_data():
-    global qqq_data, iwm_data, all_data, latest_price
+    global qqq_data, iwm_data, all_data, latest_price, ticker_list
     try:
         ticker_list = [qqq.localSymbol.replace('.', ''), iwm.localSymbol.replace('.', '')] # For forex
     except:
@@ -90,6 +87,10 @@ def compile_initial_data():
     latest_price = { b.contract.localSymbol.replace('.', ''): b[-1].close for b in [qqq_bars, iwm_bars] }
     os.system('clear')
     print(all_data.iloc[-10:])
+    # ##########################
+    # output_featured = extract_features(add_features(all_data, ticker_list), *ticker_list)
+    # output_featured.dropna().to_csv("forex_featured.csv")
+    # print("output completed")
     
 def stop_session(startTime_enabled = True, endTime_enabled = True):
     print("Into the while loop!")
@@ -134,10 +135,9 @@ def fit_model(layer = 4, neurons = 60, epochs = 50, wQQQ = - 0.3):
     """
     Return the test set with the prediction.
     """
-    
-    model = create_model(layer, neurons, adam_LR = 0.003, input_dim = len(cols))
-
-    add_portfolio_setting(featured, QQQ_weight = wQQQ)
+    model = create_model(layer, neurons, adam_LR = 0.003, input_dim = len(cols))  
+    ticker_list = ['USDJPY', 'EURUSD'] 
+    add_portfolio_setting(featured, ticker_list = ticker_list, QQQ_weight = wQQQ)
 
     split_idx = int(len(featured) * 0.66667)
 
@@ -177,14 +177,14 @@ def process_new_bar():
         print(all_data.iloc[-10:]) # print out the latest 10 ticks
         ticker_list = [ con.localSymbol.replace('.', '') for con in [qqq, iwm] ] 
         all_data = extract_features(add_features(all_data, ticker_list), *ticker_list)
-        # guess_prob = predict_last(all_data, mu ,std) # model only designed for QQQ/IWM strat for now
-        # if low < guess_prob < high: # do nothing
-            # return
-        # elif guess_prob <= low:
-            # target = -1
-        # else:
-            # target = 1
-        target = 1
+        guess_prob = predict_last(all_data, mu ,std) # model only designed for QQQ/IWM strat for now
+        print(f"Guessing Probality: {guess_prob}")
+        if low < guess_prob < high: # do nothing
+            return
+        elif guess_prob <= low:
+            target = -1
+        else:
+            target = 1
         print(f'New target position = {target}')
         cash = execute_trade(cash, target)
              
@@ -257,8 +257,8 @@ def execute_trade(cash, target_pos: float) -> None:
     desired_QQQ_shares = netWorth * wQQQ / (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * target_pos
     desired_IWM_shares = netWorth * wIWM / getPrice(tickers[1]) * target_pos
     reqQQQTrades, reqIWMTrades = desired_QQQ_shares - current_QQQ_pos, desired_IWM_shares - current_IWM_pos
-    reqQQQTrades = 100000*target_pos
-    reqIWMTrades = -1000*target_pos
+    reqQQQTrades = 1000*target_pos # dev mode
+    reqIWMTrades = -1000*target_pos # dev mode
     if cfd1 and cfd2: # dev mode
         send_order(reqQQQTrades, cfd1)
         send_order(reqIWMTrades, cfd2)
@@ -276,18 +276,18 @@ def trade_reporting():
     profit_df = util.df([fs.commissionReport for fs in ib.fills()])[["execId", "realizedPNL"]].set_index("execId")
     report = pd.concat([fill_df, profit_df], axis = 1).set_index("time")
     report['symbol'] = fills_contract_detail.values
+    report = pd.concat([report.iloc[:, -1:], report.iloc[:, :-1]], axis = 1)
     report = report.loc[session_start:].tz_convert("Asia/Singapore")
     report.index = report.index.strftime('%H:%M')
-    report = report.round(2)
+    report = report.round(4)
     os.system('clear')
     print(report)
     return report
 
 if __name__ == '__main__':
-    # featured = pd.read_csv("featured_data.csv", index_col="time", parse_dates=['time'])
-    # cols = featured.iloc[:, 2:].columns
-    # test_res, low, high, model, mu, std = fit_model()
+    featured = pd.read_csv("forex_featured.csv", index_col="date", parse_dates=['date'])
+    cols = featured.iloc[:, 2:].columns
+    test_res, low, high, model, mu, std = fit_model()
     # prepare necessary data
-    
     start_session()
     # IBKR TWS streaming and connection

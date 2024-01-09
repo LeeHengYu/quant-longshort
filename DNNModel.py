@@ -48,6 +48,7 @@ def create_model(hl = 3, hu = 50, rate = 0.4,
 
 def add_portfolio_setting(
     df,
+    ticker_list = ['QQQ', 'IWM'],
     QQQ_weight = None,
     IWM_weight = None):
     """
@@ -66,9 +67,8 @@ def add_portfolio_setting(
     if not QQQ_weight and not IWM_weight:
         raise Exception("Invalid weightage.")
     
-    LSportfolio_return = df['QQQ_return'] * QQQ_weight + df['IWM_return'] * IWM_weight
+    LSportfolio_return = df[ticker_list[0] + '_return'] * QQQ_weight + df[ticker_list[1] + '_return'] * IWM_weight
     df['LSportfolio_direction'] = np.where(LSportfolio_return > 0, 1, 0)
-    # df['cLSportfolio'] = df.LSportfolio_return.cumsum().apply(np.exp)
     
 def try_params(comb, rf = 0.04, interruption = None):
     global test_result

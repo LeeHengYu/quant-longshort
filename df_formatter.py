@@ -5,7 +5,7 @@ def add_features(df, ticker_list):
     for ticker in ticker_list:
         df[f"{ticker}_return"] = np.log(df[f"{ticker}_Close"].div(df[f"{ticker}_Close"].shift(1)))
         df.fillna(0, inplace=True)
-        df[f"{ticker}_creturn"] = df[f"{ticker}_return"].cumsum().apply(np.exp)
+        # df[f"{ticker}_creturn"] = df[f"{ticker}_return"].cumsum().apply(np.exp)
         
     windows = [5, 10, 20, 50]
     for ticker in ticker_list:
