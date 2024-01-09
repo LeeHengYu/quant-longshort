@@ -70,7 +70,6 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 ## To do list
 - Some error handling (suggested)
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more.
-- Train a new model on "USDJPY" & "EURUSD" (replicate what's happening in QQQ/IWM context but there is no background reason.) (optional)
 - SWE part: handle query from users (deploy cloud db and functions hanlding webhook)
 
 ### Credits
