@@ -76,3 +76,6 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 Partial codes are modified from the resources of a Udemy course.
 
 https://www.udemy.com/course/algorithmic-trading-with-python-and-machine-learning/
+
+## References
+https://www.mdpi.com/2306-5729/7/5/51
