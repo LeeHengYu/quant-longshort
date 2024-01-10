@@ -21,7 +21,7 @@ ib.connect()
 wQQQ = -0.3
 wIWM = 1 - wQQQ
 start_time = dt.time(14,27,0) # 3 mins before regular trading hours
-end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 10)).time()
+end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 4 )).time()
 unit = 1000
 
 cfd1 = cfd2 = None
@@ -41,13 +41,13 @@ def get_contracts(dev_mode = False):
         ib.qualifyContracts(cfd1, cfd2)
     
 
-def initialize_stream():
+def initialize_stream(duration: str, barSize: str):
     global qqq_bars, iwm_bars
     qqq_bars = ib.reqHistoricalData(
         qqq,
         endDateTime='',
-        durationStr='1 W',
-        barSizeSetting='3 mins',
+        durationStr=duration,
+        barSizeSetting=barSize,
         whatToShow='MIDPOINT',
         useRTH=True,
         formatDate=2,
@@ -55,8 +55,8 @@ def initialize_stream():
     iwm_bars = ib.reqHistoricalData(
         iwm,
         endDateTime='',
-        durationStr='1 W',
-        barSizeSetting='3 mins',
+        durationStr=duration,
+        barSizeSetting=barSize,
         whatToShow='MIDPOINT',
         useRTH=True,
         formatDate=2,
@@ -69,7 +69,7 @@ def start_session():
     session_start = pd.to_datetime(dt.datetime.utcnow()).tz_localize("utc")
 
     get_contracts(dev_mode=True)
-    initialize_stream()
+    initialize_stream('2 D', '2 mins')
     print("Establish Stream")
     compile_initial_data()
     print("Data complied!")
@@ -100,7 +100,7 @@ def stop_session(startTime_enabled = True, endTime_enabled = True):
             print("Before trading hours, the session automatically stops.")
             break
         if endTime_enabled and dt.datetime.utcnow().time() >= end_time:
-            execute_trade(-1, target_pos=0)
+            execute_trade(0)
             ib.sleep(7) # wait for the market order to fill
             try:
                 report = trade_reporting()
@@ -110,7 +110,7 @@ def stop_session(startTime_enabled = True, endTime_enabled = True):
             if report is not None:
                 print("Data is valid for API call")
                 report.round(2)
-                LINEMessageCall("Trading Summary", report.to_string())
+                LINEMessageCall("Trading Summary", (report.to_string() if not report.empty else "No trades in the session."))
                 ib.sleep(5)
             else:
                 print("No trades data")
@@ -186,7 +186,7 @@ def process_new_bar():
         else:
             target = 1
         print(f'New target position = {target}')
-        cash = execute_trade(cash, target)
+        execute_trade(target)
              
 def updateLatestPrice(bars):
     temp = bars.contract.localSymbol.replace('.', '')
@@ -219,7 +219,11 @@ def getPrice(ticker):
         return latest_price[ticker]
     raise KeyError("Ticker does not exist.")
 
-def send_order(units, contract, fractionEnabled = False):
+def send_order(units, contract, fractionAllowed = False):
+    units = abs(units)
+    if not fractionAllowed:
+        units = floor(units)
+        
     if units > 0:
         side = 'BUY'
     elif units < 0:
@@ -227,10 +231,6 @@ def send_order(units, contract, fractionEnabled = False):
     else: # no trades
         return
     
-    units = abs(units)
-    if not fractionEnabled:
-        units = floor(units)
-        
     order = MarketOrder(side, units)
     ib.placeOrder(contract, order)
 
@@ -241,22 +241,22 @@ def execute_trade(target_pos: float):
         tickers = [con.symbol.replace('.', '') for con in [qqq, iwm]]
     
     try:
-        current_QQQ_pos = [pos.position for pos in ib.positions() if pos.contract.conId == qqq.conId][0]
+        current_QQQ_pos = [pos.position for pos in ib.positions() if pos.contract.conId == (cfd1 if cfd1 else qqq).conId][0]
     except:
         current_QQQ_pos = 0
     try:
-        current_IWM_pos = [pos.position for pos in ib.positions() if pos.contract.conId == iwm.conId][0]
+        current_IWM_pos = [pos.position for pos in ib.positions() if pos.contract.conId == (cfd2 if cfd2 else iwm).conId][0]
     except:
         current_IWM_pos = 0
     
     # if USD___, position = USD FV, else convert to USD position
     # netWorth = (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * current_QQQ_pos + getPrice(tickers[1]) * current_IWM_pos + original_cash
     # calculate the latest net worth based on the latest tick price
-        
-    desired_QQQ_shares = unit * target_pos * 1.3 / 1.1
+    desired_QQQ_shares = unit * target_pos * 1.3 / getPrice("EURUSD")
     desired_IWM_shares = unit * target_pos * (-0.3)
+    print(f'QQQ = {desired_QQQ_shares}, IWM = {desired_IWM_shares}')
     reqQQQTrades, reqIWMTrades = desired_QQQ_shares - current_QQQ_pos, desired_IWM_shares - current_IWM_pos
-    if cfd1 and cfd2: # dev mode
+    if cfd1 and cfd2: # dev mode: FOREX
         send_order(reqQQQTrades, cfd1)
         send_order(reqIWMTrades, cfd2)
     else:
@@ -264,7 +264,6 @@ def execute_trade(target_pos: float):
         send_order(reqIWMTrades, iwm)
     # rebalance every hour (lower volatility but more trans costs)
     # inaccurate calculation on balance as we're getting delayed prices on stocks (paper account)
-    # res = netWorth - reqQQQTrades * getPrice(qqq.localSymbol.replace('.', '')) - reqIWMTrades * getPrice(iwm.localSymbol.replace('.', ''))
     
 def trade_reporting():
     fills_contract_detail = util.df([fs.contract for fs in ib.fills()]).localSymbol
