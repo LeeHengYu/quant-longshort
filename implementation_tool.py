@@ -1,6 +1,6 @@
 import datetime as dt
 import os
-from math import floor
+from math import floor, ceil
 
 import numpy as np
 import pandas as pd
@@ -11,18 +11,14 @@ from DNNModel import *
 from line_message import LINEMessageCall
 
 pd.set_option('mode.chained_assignment', None)
-# pd.set_option('float_format', '{:.4f}'.format)
 # suppress chain assignment warning (already used loc but still not working)
 # suspect false positives (according to pandas official doc)
-
-ib = IB()
-ib.connect()
 
 wQQQ = -0.3
 wIWM = 1 - wQQQ
 start_time = dt.time(14,27,0) # 3 mins before regular trading hours
-end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 4 )).time()
-unit = 1000
+end_time = (dt.datetime.utcnow() + dt.timedelta(minutes = 5)).time()
+multiplier = 1000
 
 cfd1 = cfd2 = None
 
@@ -38,7 +34,7 @@ def get_contracts(dev_mode = False):
         cfd2 = CFD('EUR', currency='USD')
     ib.qualifyContracts(qqq, iwm)
     if dev_mode:
-        ib.qualifyContracts(cfd1, cfd2)
+        ib.qualifyContracts(cfd1, cfd2) # additional contracts
     
 
 def initialize_stream(duration: str, barSize: str):
@@ -69,11 +65,9 @@ def start_session():
     session_start = pd.to_datetime(dt.datetime.utcnow()).tz_localize("utc")
 
     get_contracts(dev_mode=True)
-    initialize_stream('2 D', '2 mins')
-    print("Establish Stream")
+    initialize_stream('2 D', '2 mins') # this needs to follow the str format constraint of TWS API
     compile_initial_data()
-    print("Data complied!")
-    stop_session(False, True)
+    stop_session(startTime_enabled=False, endTime_enabled=True)
     
 def compile_initial_data():
     global qqq_data, iwm_data, all_data, latest_price, ticker_list
@@ -86,11 +80,7 @@ def compile_initial_data():
     all_data = pd.concat([qqq_data, iwm_data], axis = 1).dropna()
     latest_price = { b.contract.localSymbol.replace('.', ''): b[-1].close for b in [qqq_bars, iwm_bars] }
     os.system('clear')
-    print(all_data.iloc[-10:])
-    # ##########################
-    # output_featured = extract_features(add_features(all_data, ticker_list), *ticker_list)
-    # output_featured.dropna().to_csv("forex_featured.csv")
-    # print("output completed")
+    print(all_data.iloc[-10:]) # print the latest 10 ticks
     
 def stop_session(startTime_enabled = True, endTime_enabled = True):
     print("Into the while loop!")
@@ -113,7 +103,7 @@ def stop_session(startTime_enabled = True, endTime_enabled = True):
                 LINEMessageCall("Trading Summary", (report.to_string() if not report.empty else "No trades in the session."))
                 ib.sleep(5)
             else:
-                print("No trades data")
+                print("No trades data or errors in fetching data.")
             print("End session as planned")
             break
     ib.cancelHistoricalData(qqq_bars)
@@ -175,11 +165,18 @@ def process_new_bar():
         all_data = pd.concat([qqq_data, iwm_data], axis = 1)
         os.system('clear')
         print(all_data.iloc[-10:]) # print out the latest 10 ticks
-        ticker_list = [ con.localSymbol.replace('.', '') for con in [qqq, iwm] ] 
+        
+        if cfd1 is not None:
+            ticker_list = [ con.localSymbol.replace('.', '') for con in [qqq, iwm] ]  # Forex
+        else:
+            ticker_list = [ con.symbol for con in [qqq, iwm] ] # Stock
+        
         prediction_data = extract_features(add_features(all_data, ticker_list), *ticker_list)
-        guess_prob = predict_last(prediction_data, mu ,std) # model only designed for QQQ/IWM strat for now
-        print(f"Guessing Probality: {guess_prob}")
+        guess_prob = predict_last(prediction_data, mu ,std) # Using QQQ/IWM for demo
+        print(f'Low: {low}, High: {high}')
+        print(f"Prediction Probability: {guess_prob}")
         if low < guess_prob < high: # do nothing
+            print("No trades.")
             return
         elif guess_prob <= low:
             target = -1
@@ -220,9 +217,9 @@ def getPrice(ticker):
     raise KeyError("Ticker does not exist.")
 
 def send_order(units, contract, fractionAllowed = False):
-    units = abs(units)
+    
     if not fractionAllowed:
-        units = floor(units)
+        units = int(floor(units) if units > 0 else ceil(units)) # round near to 0
         
     if units > 0:
         side = 'BUY'
@@ -231,15 +228,12 @@ def send_order(units, contract, fractionAllowed = False):
     else: # no trades
         return
     
+    units = abs(units)
+    
     order = MarketOrder(side, units)
     ib.placeOrder(contract, order)
 
 def execute_trade(target_pos: float):
-    try:
-        tickers = [con.localSymbol.replace('.', '') for con in [qqq, iwm]]
-    except:
-        tickers = [con.symbol.replace('.', '') for con in [qqq, iwm]]
-    
     try:
         current_QQQ_pos = [pos.position for pos in ib.positions() if pos.contract.conId == (cfd1 if cfd1 else qqq).conId][0]
     except:
@@ -252,9 +246,9 @@ def execute_trade(target_pos: float):
     # if USD___, position = USD FV, else convert to USD position
     # netWorth = (1 if tickers[0][:3] == "USD" else getPrice(tickers[0])) * current_QQQ_pos + getPrice(tickers[1]) * current_IWM_pos + original_cash
     # calculate the latest net worth based on the latest tick price
-    desired_QQQ_shares = unit * target_pos * 1.3 / getPrice("EURUSD")
-    desired_IWM_shares = unit * target_pos * (-0.3)
-    print(f'QQQ = {desired_QQQ_shares}, IWM = {desired_IWM_shares}')
+    desired_QQQ_shares = multiplier * target_pos * 1.3 / getPrice("EURUSD") # how many EUR to hold
+    desired_IWM_shares = multiplier * target_pos * (-0.3) / 1
+    # weighting based on USD net worth
     reqQQQTrades, reqIWMTrades = desired_QQQ_shares - current_QQQ_pos, desired_IWM_shares - current_IWM_pos
     if cfd1 and cfd2: # dev mode: FOREX
         send_order(reqQQQTrades, cfd1)
@@ -283,6 +277,9 @@ if __name__ == '__main__':
     featured = pd.read_csv("forex_featured.csv", index_col="date", parse_dates=['date'])
     cols = featured.iloc[:, 2:].columns
     test_res, low, high, model, mu, std = fit_model()
+    
+    ib = IB()
+    ib.connect()
     # prepare necessary data
     start_session()
     # IBKR TWS streaming and connection
