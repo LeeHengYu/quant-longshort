@@ -68,9 +68,8 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 4. Fixed weights on QQQ/IWM so the strategy is kinda rigid.
 
 ## To do list
-- Some error handling (suggested)
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more.
-- SWE part: handle query from users (deploy cloud db and functions hanlding webhook)
+- SWE part: handle query from users (deploy cloud db and functions handling webhook events)
 
 ### Credits
 Partial codes are modified from the resources of a Udemy course.
