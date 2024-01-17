@@ -69,7 +69,7 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 
 ## To do list
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more.
-- SWE part: handle query from users (deploy cloud db and functions handling webhook events)
+- SWE part: GCP cloud SQL DB and webhook handler functions
 
 ### Credits
 Partial codes are modified from the resources of a Udemy course.
