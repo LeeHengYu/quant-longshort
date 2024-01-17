@@ -34,7 +34,7 @@ Long or short position is based on the base portfolio. E.g. if the decision is t
 The model predicts a binary outcome: if the portfolio will rise in the next hour or not. The output is therefore a probablity of portfolio appreciation in the next hour.
 
 ## Decision making on LONG or SHORT
-Based on the prediction on test set, select 20<sup>th</sup> and 80<sup>th</sup> percentile of the prediciton results on the test set as the lower and upper decision boundaries. Usually, and as I expect, the prediction probablity distribution will center at around 0.5.
+Based on the prediction on test set, select 20<sup>th</sup> and 80<sup>th</sup> percentile of the prediciton results on the test set as the lower and upper decision boundaries.
 1. If the prediction on the latest tick data is in between, maintain the position. **(No new market order placed)**
 2. Else if the prediction is below the lower bound, short the base portfolio (by setting the desired position to -1)
 3. Else, long the base portfolio.
