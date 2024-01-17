@@ -17,12 +17,13 @@ Brute force training the given data (2/3 as training and the rest as test), pick
 - L1 regularization (λ = 0.0005)
 - Loss function: Binary Cross Entropy
 - Optimizer: Adam (Adaptive Moment Estimation)
-- Class weight adjustment: tell the model to pay more attention (heavier weight) on the relativity few cases that are available. Usually this technique is used on imbalanced data, as suggested in the [official Tensorflow tutorials](https://www.tensorflow.org/tutorials/structured_data/imbalanced_data#class_weights).
+- Class weight adjustment: tell the model to pay more attention (heavier weight) on the relativity few cases that are available. This is commonly applied on imbalanced output when the number of 0's and 1's are not close, as suggested in the [official Tensorflow tutorials](https://www.tensorflow.org/tutorials/structured_data/imbalanced_data#class_weights).
 
 ## Indicators as features 
 SMA(50) - SMA(150), EMA, Boillinger bands, RSI of 5/10 days, MACD, KD lines, stochastic oscillator, parabolic SAR, Aroon Indicator.
 
 _I tried to include 30+ features and fit a model on them. Now I am still learning how to improve the models by adjusting some params or removing some features._
+_considering adding time lags (making it time series) to predict..._
 
 ## Portfolio
 Base portfolio: 130% of IWM & -30% of QQQ (opposite position of IWM)
@@ -68,8 +69,8 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 4. Fixed weights on QQQ/IWM so the strategy is kinda rigid.
 
 ## To do list
-- Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for more.
-- SWE part: GCP cloud SQL DB and webhook handler functions
+- Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for details. This is to display the table more aesthetically.
+- SWE part: GCP cloud SQL DB and webhook handler functions for user query
 
 ### Credits
 Partial codes are modified from the resources of a Udemy course.
