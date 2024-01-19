@@ -68,9 +68,10 @@ Making Line Messaging API call: Called at the end of trading sessions, abstracti
 3. The market orders in paper trading usually take up to a few minutes to be filled even for QQQ such a highly liquid security (don't know why). Making tracking the portfolio net worth harder.
 4. Fixed weights on QQQ/IWM so the strategy is kinda rigid.
 
-## To do list
+## To-do list
 - Line messages formatting. See [Flex message](https://developers.line.biz/en/docs/messaging-api/flex-message-elements/) for details. This is to display the table more aesthetically.
-- SWE part: GCP cloud SQL DB and webhook handler functions for user query
+- Update trading summary to [GCP SQL DB](https://cloud.google.com/sql) after sessions ends (sqlalchemy engine needed with `df.to_sql()` method in `pandas`)
+- Create handlers for webhook events (can directly use the formatting helper functions for aesthetics)
 
 ### Credits
 Partial codes are modified from the resources of a Udemy course.
